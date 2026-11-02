@@ -8,11 +8,16 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 
 import javax.sql.DataSource;
+import java.net.URI;
 
 /**
  * Robust DataSource Configuration that seamlessly handles cloud provider URLs
- * (such as Render, Supabase, Neon, or Railway) by auto-normalizing raw
- * 'postgresql://' or 'postgres://' connection strings into standard JDBC format.
+ * (such as Render, Supabase, Neon, or Railway).
+ *
+ * PostgreSQL JDBC driver does NOT accept 'user:password@host' in the JDBC URL and
+ * expects standard 'jdbc:postgresql://host:port/database' with credentials supplied
+ * separately. This class automatically extracts credentials from URI-style strings
+ * so deployments never fail with 'invalid port number'.
  */
 @Slf4j
 @Configuration
@@ -21,27 +26,58 @@ public class DataSourceConfig {
     @Bean
     @Primary
     public DataSource dataSource(Environment env) {
-        String rawUrl = env.getProperty("spring.datasource.url", "jdbc:h2:mem:bankdb;DB_CLOSE_DELAY=-1");
-        String effectiveUrl = rawUrl.trim();
+        String rawUrl = env.getProperty("spring.datasource.url", "jdbc:h2:mem:bankdb;DB_CLOSE_DELAY=-1").trim();
 
-        // Auto-fix Render raw database URLs that lack the required 'jdbc:' protocol prefix
-        if (effectiveUrl.startsWith("postgres://")) {
-            effectiveUrl = "jdbc:postgresql://" + effectiveUrl.substring("postgres://".length());
-            log.info("Auto-formatted cloud database URL to standard JDBC format: {}", maskUrl(effectiveUrl));
-        } else if (effectiveUrl.startsWith("postgresql://")) {
-            effectiveUrl = "jdbc:" + effectiveUrl;
-            log.info("Auto-formatted cloud database URL to standard JDBC format: {}", maskUrl(effectiveUrl));
+        String jdbcUrl = rawUrl;
+        String username = env.getProperty("spring.datasource.username");
+        String password = env.getProperty("spring.datasource.password");
+
+        // Handle URI-style connection strings containing '@' (e.g. postgresql://user:pass@host/db)
+        if (rawUrl.contains("@")) {
+            try {
+                String cleanUriStr = rawUrl.startsWith("jdbc:") ? rawUrl.substring(5) : rawUrl;
+                if (cleanUriStr.startsWith("postgres://")) {
+                    cleanUriStr = "postgresql://" + cleanUriStr.substring("postgres://".length());
+                }
+
+                URI uri = new URI(cleanUriStr);
+                String userInfo = uri.getUserInfo();
+                if (userInfo != null && userInfo.contains(":")) {
+                    String[] parts = userInfo.split(":", 2);
+                    if (username == null || username.isBlank()) {
+                        username = parts[0];
+                    }
+                    if (password == null || password.isBlank()) {
+                        password = parts[1];
+                    }
+                }
+
+                String host = uri.getHost();
+                int port = uri.getPort() > 0 ? uri.getPort() : 5432;
+                String path = uri.getPath(); // includes leading '/'
+                String query = uri.getQuery() != null ? "?" + uri.getQuery() : "";
+
+                jdbcUrl = "jdbc:postgresql://" + host + ":" + port + path + query;
+                log.info("Extracted credentials and formatted clean JDBC URL: jdbc:postgresql://{}:{}{}", host, port, path);
+            } catch (Exception e) {
+                log.warn("Could not parse cloud database URI '{}', falling back to direct URL: {}", rawUrl, e.getMessage());
+            }
+        } else {
+            // Standard URL without '@'
+            if (rawUrl.startsWith("postgres://")) {
+                jdbcUrl = "jdbc:postgresql://" + rawUrl.substring("postgres://".length());
+            } else if (rawUrl.startsWith("postgresql://")) {
+                jdbcUrl = "jdbc:" + rawUrl;
+            }
         }
 
         HikariDataSource ds = new HikariDataSource();
-        ds.setJdbcUrl(effectiveUrl);
+        ds.setJdbcUrl(jdbcUrl);
 
-        String username = env.getProperty("spring.datasource.username");
         if (username != null && !username.isBlank()) {
             ds.setUsername(username.trim());
         }
 
-        String password = env.getProperty("spring.datasource.password");
         if (password != null) {
             ds.setPassword(password.trim());
         }
@@ -49,13 +85,10 @@ public class DataSourceConfig {
         String driver = env.getProperty("spring.datasource.driver-class-name");
         if (driver != null && !driver.isBlank()) {
             ds.setDriverClassName(driver.trim());
+        } else if (jdbcUrl.startsWith("jdbc:postgresql:")) {
+            ds.setDriverClassName("org.postgresql.Driver");
         }
 
         return ds;
     }
-
-    private String maskUrl(String url) {
-        return url.replaceAll("://.*?:.*?@", "://***:***@");
-    }
 }
-
