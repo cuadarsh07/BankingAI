@@ -26,14 +26,14 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
                    "JOIN FETCH t.account a " +
                    "LEFT JOIN FETCH t.counterpartyAccount cp " +
                    "WHERE a.id = :accountId " +
-                   "AND (:type IS NULL OR t.type = :type) " +
-                   "AND (:startDate IS NULL OR t.createdAt >= :startDate) " +
-                   "AND (:endDate IS NULL OR t.createdAt <= :endDate)",
+                   "AND (cast(:type as string) IS NULL OR t.type = :type) " +
+                   "AND (cast(:startDate as timestamp) IS NULL OR t.createdAt >= :startDate) " +
+                   "AND (cast(:endDate as timestamp) IS NULL OR t.createdAt <= :endDate)",
            countQuery = "SELECT COUNT(t) FROM Transaction t " +
                         "WHERE t.account.id = :accountId " +
-                        "AND (:type IS NULL OR t.type = :type) " +
-                        "AND (:startDate IS NULL OR t.createdAt >= :startDate) " +
-                        "AND (:endDate IS NULL OR t.createdAt <= :endDate)")
+                        "AND (cast(:type as string) IS NULL OR t.type = :type) " +
+                        "AND (cast(:startDate as timestamp) IS NULL OR t.createdAt >= :startDate) " +
+                        "AND (cast(:endDate as timestamp) IS NULL OR t.createdAt <= :endDate)")
     Page<Transaction> findTransactionsWithFilters(
             @Param("accountId") Long accountId,
             @Param("type") TransactionType type,
