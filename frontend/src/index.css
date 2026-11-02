@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg-main: #F7F5F0;
+    --color-bg-secondary: #EFECE6;
+    --color-bg-elevated: #FFFFFF;
+    --color-bg-subtle: #E8E4DC;
+    --color-text-primary: #191816;
+    --color-text-secondary: #68635C;
+    --color-text-muted: #948E84;
+    --color-border-subtle: rgba(25, 24, 22, 0.12);
+    --color-border-strong: rgba(25, 24, 22, 0.22);
+    --color-border-accent: rgba(255, 85, 51, 0.4);
+  }
+
+  .dark {
+    --color-bg-main: #11100F;
+    --color-bg-secondary: #191816;
+    --color-bg-elevated: #211F1C;
+    --color-bg-subtle: #2A2723;
+    --color-text-primary: #F2EEE8;
+    --color-text-secondary: #A9A39C;
+    --color-text-muted: #6E6861;
+    --color-border-subtle: rgba(242, 238, 232, 0.09);
+    --color-border-strong: rgba(242, 238, 232, 0.18);
+    --color-border-accent: rgba(255, 85, 51, 0.4);
+  }
+
+  * {
+    border-color: var(--color-border-subtle);
+  }
+
+  body {
+    background-color: var(--color-bg-main);
+    color: var(--color-text-primary);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    letter-spacing: -0.01em;
+    min-height: 100vh;
+  }
+}
+
+/* Custom editorial utility classes inspired by dhruvgupta.co */
+.font-mono-numbers {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.thin-border {
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--color-border-subtle);
+}
+
+.corner-plus {
+  position: relative;
+}
+
+.corner-plus::before {
+  content: '+';
+  position: absolute;
+  top: -7px;
+  left: -5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.corner-plus::after {
+  content: '+';
+  position: absolute;
+  bottom: -7px;
+  right: -5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-bg-subtle);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+

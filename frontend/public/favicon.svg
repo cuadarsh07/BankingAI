@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF5E00"/>
+      <stop offset="100%" stop-color="#FF2A00"/>
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#141416"/>
+      <stop offset="100%" stop-color="#09090B"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#FF5E00" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle -->
+  <rect width="64" height="64" rx="16" fill="url(#bgGrad)"/>
+  <rect width="62" height="62" x="1" y="1" rx="15" stroke="#26262B" stroke-width="1.5"/>
+
+  <!-- Shield Shape -->
+  <path d="M32 10L48 16V29C48 40.5 41.2 50.8 32 54C22.8 50.8 16 40.5 16 29V16L32 10Z"
+        fill="url(#shieldGrad)"
+        filter="url(#glow)"/>
+
+  <!-- Bank / Vault Core Graphic -->
+  <!-- Roof / Pediment -->
+  <path d="M32 20L40 25H24L32 20Z" fill="#FFFFFF"/>
+  <!-- Columns -->
+  <rect x="25" y="27" width="2.5" height="9" rx="0.5" fill="#FFFFFF"/>
+  <rect x="30.75" y="27" width="2.5" height="9" rx="0.5" fill="#FFFFFF"/>
+  <rect x="36.5" y="27" width="2.5" height="9" rx="0.5" fill="#FFFFFF"/>
+  <!-- Base -->
+  <rect x="23" y="37" width="18" height="2.5" rx="0.5" fill="#FFFFFF"/>
+
+  <!-- Subtle AI Sparkle in center bottom -->
+  <circle cx="32" cy="45" r="2.5" fill="#FFFFFF"/>
+</svg>
+

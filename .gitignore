@@ -1,0 +1,36 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# IDE & Editor
+.idea/
+*.iml
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Java / Maven build output
+combined/target/
+combined/*.log
+target/
+*.class
+
+# Frontend build & dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+node_modules/
+dist/
+
+# Environment files
+*.env
+*.env.local
+*.env.*.local
+!*.env.example
+
+# Antigravity artifacts
+.gemini/
+
