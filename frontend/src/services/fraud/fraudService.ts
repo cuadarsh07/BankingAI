@@ -15,6 +15,12 @@ import {
   getMockAssistantReply,
 } from '../mock/mockData';
 
+const getMockTx = (id: number): HeldTransaction => {
+  const match = MOCK_HELD_TRANSACTIONS.find((t) => t.id === id);
+  if (match) return match;
+  return MOCK_HELD_TRANSACTIONS[0] as HeldTransaction;
+};
+
 export const fraudService = {
   // Pre-transfer Risk Assessment
   assessRisk: async (data: Partial<TransferRequest>): Promise<FraudAssessment> => {
@@ -121,8 +127,7 @@ export const fraudService = {
 
   getHeldTransactionById: async (id: number): Promise<HeldTransaction> => {
     if (isMockSession()) {
-      const match = MOCK_HELD_TRANSACTIONS.find((t) => t.id === id);
-      return match || MOCK_HELD_TRANSACTIONS[0];
+      return getMockTx(id);
     }
 
     try {
@@ -130,8 +135,7 @@ export const fraudService = {
       return res.data;
     } catch (err) {
       console.warn('Backend unavailable, using mock held transaction fallback:', err);
-      const match = MOCK_HELD_TRANSACTIONS.find((t) => t.id === id);
-      return match || MOCK_HELD_TRANSACTIONS[0];
+      return getMockTx(id);
     }
   },
 
@@ -141,7 +145,7 @@ export const fraudService = {
     answers: Record<string, string>
   ): Promise<HeldTransaction> => {
     if (isMockSession()) {
-      const tx = MOCK_HELD_TRANSACTIONS.find((t) => t.id === id) || MOCK_HELD_TRANSACTIONS[0];
+      const tx = getMockTx(id);
       tx.state = 'PENDING_BANK_REVIEW';
       tx.customerVerificationAnswers = JSON.stringify(answers);
       return tx;
@@ -157,7 +161,7 @@ export const fraudService = {
   // Cancel held transaction
   cancelTransaction: async (id: number): Promise<HeldTransaction> => {
     if (isMockSession()) {
-      const tx = MOCK_HELD_TRANSACTIONS.find((t) => t.id === id) || MOCK_HELD_TRANSACTIONS[0];
+      const tx = getMockTx(id);
       tx.state = 'CANCELLED';
       return tx;
     }
@@ -171,7 +175,7 @@ export const fraudService = {
   // Request Bank Review
   requestReview: async (id: number): Promise<HeldTransaction> => {
     if (isMockSession()) {
-      const tx = MOCK_HELD_TRANSACTIONS.find((t) => t.id === id) || MOCK_HELD_TRANSACTIONS[0];
+      const tx = getMockTx(id);
       tx.state = 'PENDING_BANK_REVIEW';
       return tx;
     }
@@ -205,7 +209,7 @@ export const fraudService = {
     request: AdminReviewRequest
   ): Promise<HeldTransaction> => {
     if (isMockSession()) {
-      const tx = MOCK_HELD_TRANSACTIONS.find((t) => t.id === id) || MOCK_HELD_TRANSACTIONS[0];
+      const tx = getMockTx(id);
       tx.state = request.action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
       tx.adminReviewNotes = request.notes;
       tx.reviewedBy = 'Marcus Vance (Admin)';
