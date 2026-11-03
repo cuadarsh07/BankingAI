@@ -6,13 +6,24 @@ import { ApiErrorResponse } from '@/types';
 export const TOKEN_STORAGE_KEY = 'aethel_session_token';
 export const USER_STORAGE_KEY = 'aethel_session_user';
 
+export const isMockSession = (): boolean => {
+  try {
+    const userStr = localStorage.getItem(USER_STORAGE_KEY);
+    if (!userStr) return false;
+    const user = JSON.parse(userStr);
+    return Boolean(user?.isMock || user?.token?.startsWith('demo-jwt-'));
+  } catch {
+    return false;
+  }
+};
+
 export const apiClient = axios.create({
   baseURL: ENV.API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
-  timeout: 15000,
+  timeout: 60000, // 60s timeout accommodates Render cold starts
 });
 
 // Centralized Request Interceptor

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { ENV } from '@/config/env';
 import { Input } from '@/components/ui/Input';
 import { PasswordInput } from '@/components/ui/PasswordInput';
 import { Button } from '@/components/ui/Button';
@@ -29,9 +30,17 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export const LoginPage: React.FC = () => {
-  const { login } = useAuth();
+  const { login, enableInstantOfflineDemo } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [warmingMessage, setWarmingMessage] = useState<string | null>(null);
+
+  // Auto-wake Render backend immediately on page hit
+  useEffect(() => {
+    fetch(`${ENV.API_BASE_URL}/api/auth/health`, { method: 'GET', mode: 'cors' }).catch(() => {
+      fetch(`${ENV.API_BASE_URL}/`, { method: 'GET', mode: 'no-cors' }).catch(() => {});
+    });
+  }, []);
 
   const {
     register,
@@ -48,33 +57,59 @@ export const LoginPage: React.FC = () => {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
+    setWarmingMessage(null);
+    const timer = setTimeout(() => {
+      setWarmingMessage('Connecting to cloud backend (Render free tier wakes up in ~30s)...');
+    }, 2500);
+
     try {
       await login(data);
+      clearTimeout(timer);
       toast.success('Login successful. Welcome to Aethel Bank.');
       navigate('/dashboard');
     } catch (err: unknown) {
+      clearTimeout(timer);
       const error = err as Error;
       toast.error(error.message || 'Authentication failed. Please verify credentials.');
     } finally {
+      clearTimeout(timer);
       setIsSubmitting(false);
+      setWarmingMessage(null);
     }
   };
 
   const handleQuickDemo = async (role: 'ROLE_CUSTOMER' | 'ROLE_ADMIN') => {
     setIsSubmitting(true);
+    setWarmingMessage(null);
+    const timer = setTimeout(() => {
+      setWarmingMessage('Waking up cloud backend on Render (~30s)... or click "Instant Demo Preview" below.');
+    }, 2500);
+
     try {
       const username = role === 'ROLE_CUSTOMER' ? 'alice@example.com' : 'admin@example.com';
       setValue('username', username);
       setValue('password', 'Password123');
       await login({ username, password: 'Password123' });
+      clearTimeout(timer);
       toast.success(`Authenticated as ${role === 'ROLE_ADMIN' ? 'Security Admin' : 'Customer (Alice)'}`);
       navigate(role === 'ROLE_ADMIN' ? '/admin/dashboard' : '/dashboard');
     } catch (err: unknown) {
-      const error = err as Error;
-      toast.error(error.message || 'Authentication failed. Please verify backend is running.');
+      clearTimeout(timer);
+      console.warn('Backend sleeping or unreachable. Auto-engaging interactive demo session:', err);
+      enableInstantOfflineDemo(role);
+      toast.info(`Server warming up: Connected to Interactive Demo with full ${role === 'ROLE_ADMIN' ? 'Admin telemetry' : 'Alice Spender profile & transactions'}!`);
+      navigate(role === 'ROLE_ADMIN' ? '/admin/dashboard' : '/dashboard');
     } finally {
+      clearTimeout(timer);
       setIsSubmitting(false);
+      setWarmingMessage(null);
     }
+  };
+
+  const handleInstantOfflineDemo = (role: 'ROLE_CUSTOMER' | 'ROLE_ADMIN') => {
+    enableInstantOfflineDemo(role);
+    toast.success(`Loaded Instant Demo session as ${role === 'ROLE_ADMIN' ? 'Security Admin' : 'Customer (Alice)'} with zero wait time.`);
+    navigate(role === 'ROLE_ADMIN' ? '/admin/dashboard' : '/dashboard');
   };
 
   return (
@@ -227,6 +262,34 @@ export const LoginPage: React.FC = () => {
                     hint="Demo password: Password123"
                   />
 
+                  {warmingMessage && (
+                    <div className="p-3 rounded-lg border border-accent/40 bg-accent/10 text-xs font-mono text-accent flex items-start gap-2.5 animate-pulse">
+                      <Activity className="w-4 h-4 mt-0.5 shrink-0 animate-spin" />
+                      <div className="space-y-1">
+                        <p className="font-semibold">{warmingMessage}</p>
+                        <p className="text-[11px] text-foreground-secondary">
+                          Render free instances sleep after inactivity. Click an option below to enter immediately:
+                        </p>
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleInstantOfflineDemo('ROLE_CUSTOMER')}
+                            className="px-2 py-0.5 rounded bg-accent text-background font-bold text-[10px] hover:opacity-90"
+                          >
+                            Explore Customer (0s wait)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleInstantOfflineDemo('ROLE_ADMIN')}
+                            className="px-2 py-0.5 rounded bg-foreground text-background font-bold text-[10px] hover:opacity-90"
+                          >
+                            Explore Admin (0s wait)
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="pt-2">
                     <Button
                       type="submit"
@@ -247,7 +310,7 @@ export const LoginPage: React.FC = () => {
                       <Sparkles className="w-3.5 h-3.5" />
                       <span>INSTANT DEMO SESSIONS:</span>
                     </span>
-                    <span className="text-[10px] text-foreground-muted">AUTHENTIC JWT</span>
+                    <span className="text-[10px] text-foreground-muted">CLOUD + OFFLINE FALLBACK</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -280,6 +343,28 @@ export const LoginPage: React.FC = () => {
                         Fraud Command Center
                       </span>
                     </button>
+                  </div>
+
+                  {/* 0-second Direct Demo Bypass */}
+                  <div className="p-2.5 rounded-lg border border-dashed border-border/80 bg-background-elevated/40 text-[11px] font-mono text-foreground-secondary flex items-center justify-between">
+                    <span className="text-foreground-muted">Skip cloud spin-up:</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleInstantOfflineDemo('ROLE_CUSTOMER')}
+                        className="text-accent hover:underline font-semibold"
+                      >
+                        ⚡ Alice Demo
+                      </button>
+                      <span className="text-border">|</span>
+                      <button
+                        type="button"
+                        onClick={() => handleInstantOfflineDemo('ROLE_ADMIN')}
+                        className="text-status-warning hover:underline font-semibold"
+                      >
+                        ⚡ Admin Demo
+                      </button>
+                    </div>
                   </div>
                 </div>
 

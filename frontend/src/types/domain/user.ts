@@ -8,5 +8,6 @@ export interface UserSession {
   role: Role;
   accountId: number | null;
   accountNumber: string | null;
+  isMock?: boolean;
 }
 

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { UserSession } from '@/types';
-import { TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from '@/services/api/apiClient';
+import { UserSession, LoginRequest, RegisterRequest } from '@/types';
+import { TOKEN_STORAGE_KEY, USER_STORAGE_KEY, isMockSession } from '@/services/api/apiClient';
 import { authService } from '@/services/auth/authService';
-import { LoginRequest, RegisterRequest } from '@/types';
+import { MOCK_USER_CUSTOMER, MOCK_USER_ADMIN } from '@/services/mock/mockData';
 
 interface AuthContextType {
   user: UserSession | null;
@@ -13,8 +13,8 @@ interface AuthContextType {
   login: (credentials: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
-  // Demo switch helper for effortless design review without needing active backend database seeding
   setDemoUser: (role: 'ROLE_CUSTOMER' | 'ROLE_ADMIN') => Promise<void> | void;
+  enableInstantOfflineDemo: (role: 'ROLE_CUSTOMER' | 'ROLE_ADMIN') => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,14 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const stored = localStorage.getItem(USER_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as UserSession;
-        // Purge legacy mock tokens so user is not stuck in 403 forbidden state
-        if (parsed?.token && parsed.token.startsWith('demo-jwt-')) {
-          localStorage.removeItem(TOKEN_STORAGE_KEY);
-          localStorage.removeItem(USER_STORAGE_KEY);
-          return null;
-        }
-        return parsed;
+        return JSON.parse(stored) as UserSession;
       }
     } catch {}
     return null;
@@ -57,7 +50,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const handleUnauthorized = () => {
-      clearSession();
+      // Don't auto-clear mock demo sessions on unauthorized events
+      if (!isMockSession()) {
+        clearSession();
+      }
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
@@ -76,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: res.role,
         accountId: res.accountId,
         accountNumber: res.accountNumber,
+        isMock: false,
       };
       persistSession(session);
     } finally {
@@ -95,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: res.role,
         accountId: res.accountId,
         accountNumber: res.accountNumber,
+        isMock: false,
       };
       persistSession(session);
     } finally {
@@ -106,6 +104,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearSession();
   };
 
+  const enableInstantOfflineDemo = (role: 'ROLE_CUSTOMER' | 'ROLE_ADMIN') => {
+    if (role === 'ROLE_CUSTOMER') {
+      persistSession({
+        ...MOCK_USER_CUSTOMER,
+        isMock: true,
+      });
+    } else {
+      persistSession({
+        ...MOCK_USER_ADMIN,
+        isMock: true,
+      });
+    }
+  };
+
   const setDemoUser = async (role: 'ROLE_CUSTOMER' | 'ROLE_ADMIN') => {
     setIsLoading(true);
     try {
@@ -114,29 +126,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         await login({ username: 'admin@example.com', password: 'Password123' });
       }
-    } catch {
-      // Offline fallback if backend isn't reachable
-      if (role === 'ROLE_CUSTOMER') {
-        persistSession({
-          token: 'demo-jwt-customer-token',
-          tokenType: 'Bearer',
-          username: 'alice@example.com',
-          fullName: 'Alice Spender',
-          role: 'ROLE_CUSTOMER',
-          accountId: 1,
-          accountNumber: '1000000001',
-        });
-      } else {
-        persistSession({
-          token: 'demo-jwt-admin-token',
-          tokenType: 'Bearer',
-          username: 'admin@example.com',
-          fullName: 'Marcus Vance',
-          role: 'ROLE_ADMIN',
-          accountId: null,
-          accountNumber: null,
-        });
-      }
+    } catch (err) {
+      console.warn('Backend currently asleep or unreachable; falling back to instant interactive demo:', err);
+      enableInstantOfflineDemo(role);
     } finally {
       setIsLoading(false);
     }
@@ -158,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         setDemoUser,
+        enableInstantOfflineDemo,
       }}
     >
       {children}
@@ -165,11 +158,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export function useAuth(): AuthContextType {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
-
+};
